@@ -419,3 +419,120 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+.bundles-panel {
+    margin-top: 22px;
+  }
+  
+  .bundle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  
+  .bundle-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: white;
+  }
+  
+  .bundle-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .bundle-discount {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: var(--soft-green);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  
+  .bundle-type {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  
+  .bundle-card h3 {
+    margin: 18px 0 4px;
+    font-size: 18px;
+    letter-spacing: -0.025em;
+  }
+  
+  .bundle-item-list {
+    margin-top: 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  
+  .bundle-item-list ul {
+    padding-left: 18px;
+    margin: 8px 0 15px;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+  
+  .bundle-item-list ul:last-child {
+    margin-bottom: 0;
+  }
+  
+  .bundle-pricing {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    padding: 18px 0;
+  }
+  
+  .bundle-pricing-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 12px;
+  }
+  
+  .bundle-pricing-row > :last-child {
+    text-align: right;
+  }
+  
+  .bundle-final-price {
+    padding-top: 13px;
+    border-top: 1px solid var(--line);
+    font-size: 15px;
+    font-weight: 800;
+  }
+  
+  .discount-text {
+    color: var(--green);
+  }
+  
+  .discount-row {
+    color: var(--green);
+  }
+  
+  .bundle-disclaimer {
+    margin: 20px 0 0;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  
+  @media (max-width: 720px) {
+    .bundle-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .bundle-card {
+      padding: 16px;
+    }
+  }

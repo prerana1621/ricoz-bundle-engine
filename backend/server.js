@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const connectDB = require("./src/config/db");
 const productRoutes = require("./src/routes/product.routes");
 const recommendationRoutes = require("./src/routes/recommendation.routes");
+const bundleRoutes = require("./src/routes/bundle.routes");
 const { notFound, errorHandler } = require("./src/middleware/error.middleware");
 
 const app = express();
@@ -28,6 +29,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/products", productRoutes);
 app.use("/api/recommendations", recommendationRoutes);
+app.use("/api/bundles", bundleRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

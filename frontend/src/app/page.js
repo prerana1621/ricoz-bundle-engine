@@ -16,8 +16,12 @@ export default function Home() {
   const [products, setProducts] = useState([]);
   const [cartIds, setCartIds] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [bundles, setBundles] = useState([]);
+  const [appliedBundle, setAppliedBundle] = useState(null);
+
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -33,7 +37,7 @@ export default function Home() {
         throw new Error(data.message || "Unable to load products.");
       }
 
-      setProducts(data.products);
+      setProducts(data.products || []);
     } catch (err) {
       setError(
         `${err.message} Check that the backend is running and MongoDB is connected.`,
@@ -47,6 +51,26 @@ export default function Home() {
     loadProducts();
   }, [loadProducts]);
 
+  const cartProducts = products.filter((product) =>
+    cartIds.includes(product._id),
+  );
+
+  const cartSubtotal = cartProducts.reduce(
+    (total, product) => total + product.price,
+    0,
+  );
+
+  const discountAmount = appliedBundle ? appliedBundle.discountAmount : 0;
+
+  const cartTotal =
+    Math.round((cartSubtotal - discountAmount + Number.EPSILON) * 100) / 100;
+
+  function resetOffers() {
+    setRecommendations([]);
+    setBundles([]);
+    setAppliedBundle(null);
+  }
+
   function toggleCart(productId) {
     setCartIds((current) =>
       current.includes(productId)
@@ -54,22 +78,21 @@ export default function Home() {
         : [...current, productId],
     );
 
-    setRecommendations([]);
+    resetOffers();
     setNotice("");
+    setError("");
   }
-
-  const cartProducts = products.filter((product) =>
-    cartIds.includes(product._id),
-  );
-
-  const cartTotal = cartProducts.reduce(
-    (total, product) => total + product.price,
-    0,
-  );
 
   async function generateRecommendations() {
     if (cartIds.length === 0) {
       setNotice("Select at least one product for the cart.");
+      return;
+    }
+
+    if (appliedBundle) {
+      setNotice(
+        "A bundle discount is already applied. Remove or change a cart item before generating a new offer.",
+      );
       return;
     }
 
@@ -78,32 +101,62 @@ export default function Home() {
       setError("");
       setNotice("");
       setRecommendations([]);
+      setBundles([]);
 
-      const response = await fetch(`${API_URL}/recommendations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cartProductIds: cartIds,
-          limit: 4,
+      const [recommendationResponse, bundleResponse] = await Promise.all([
+        fetch(`${API_URL}/recommendations`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cartProductIds: cartIds,
+            limit: 4,
+          }),
         }),
-      });
 
-      const data = await response.json();
+        fetch(`${API_URL}/bundles`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cartProductIds: cartIds,
+            storeId: "demo-store",
+          }),
+        }),
+      ]);
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Unable to generate recommendations.");
+      const [recommendationData, bundleData] = await Promise.all([
+        recommendationResponse.json(),
+        bundleResponse.json(),
+      ]);
+
+      if (!recommendationResponse.ok || !recommendationData.success) {
+        throw new Error(
+          recommendationData.message || "Unable to load recommendations.",
+        );
       }
 
-      setRecommendations(data.recommendations);
+      if (!bundleResponse.ok || !bundleData.success) {
+        throw new Error(
+          bundleData.message || "Unable to generate bundle offers.",
+        );
+      }
+
+      setRecommendations(recommendationData.recommendations || []);
+
+      setBundles(bundleData.bundles || []);
+
       setNotice(
-        data.recommendations.length
-          ? "Recommendations generated successfully."
-          : "No eligible recommendations were found.",
+        `Generated ${
+          recommendationData.recommendations.length
+        } product recommendations and ${
+          bundleData.bundles.length
+        } bundle offers.`,
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoadingRecommendations(false);
     }
@@ -114,8 +167,51 @@ export default function Home() {
       current.includes(product._id) ? current : [...current, product._id],
     );
 
-    setRecommendations([]);
+    resetOffers();
+
     setNotice(`${product.name} added to your demo cart.`);
+    setError("");
+  }
+
+  function applyBundle(bundle) {
+    if (appliedBundle) {
+      setNotice("A bundle discount is already applied to this demo cart.");
+      return;
+    }
+
+    const addOnIds = bundle.addOnProductIds || [];
+
+    if (addOnIds.length === 0) {
+      setNotice("This bundle contains no eligible add-on products.");
+      return;
+    }
+
+    const existingIds = new Set(cartIds);
+
+    if (addOnIds.some((id) => existingIds.has(id))) {
+      setNotice(
+        "This offer is out of date. Change the cart and generate new offers.",
+      );
+      resetOffers();
+      return;
+    }
+
+    setCartIds((current) => [...new Set([...current, ...addOnIds])]);
+
+    setAppliedBundle({
+      id: bundle.id,
+      name: bundle.name,
+      discountPercent: bundle.discountPercent,
+      discountAmount: bundle.discountAmount,
+    });
+
+    setRecommendations([]);
+    setBundles([]);
+    setError("");
+
+    setNotice(
+      `${bundle.name} applied to your demo cart. The discount is simulated and is not applied to a real Shopify checkout.`,
+    );
   }
 
   return (
@@ -127,30 +223,46 @@ export default function Home() {
             Ricoz <span className="muted">Commerce</span>
           </span>
         </a>
+
         <span className="environment">DEMO STORE</span>
       </header>
 
       <section className="intro">
         <p className="eyebrow">COMMERCE INTELLIGENCE</p>
+
         <h1>Bundle & Cross-Sell Engine</h1>
+
         <p className="subtitle">
           Discover complementary products and build smarter shopping carts.
         </p>
       </section>
 
-      {error && <div className="alert error">{error}</div>}
-      {notice && <div className="alert">{notice}</div>}
+      {error && (
+        <div className="alert error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {notice && (
+        <div className="alert" role="status">
+          {notice}
+        </div>
+      )}
 
       <section className="metrics">
         <article className="metric-card">
           <span className="metric-label">Catalog products</span>
+
           <strong>{loadingProducts ? "—" : products.length}</strong>
-          <span className="metric-note">Available in the demo catalog</span>
+
+          <span className="metric-note">Products in the demo catalog</span>
         </article>
 
         <article className="metric-card">
-          <span className="metric-label">Cart subtotal</span>
+          <span className="metric-label">Cart total</span>
+
           <strong>{money(cartTotal)}</strong>
+
           <span className="metric-note">
             {cartProducts.length} selected product(s)
           </span>
@@ -158,7 +270,9 @@ export default function Home() {
 
         <article className="metric-card">
           <span className="metric-label">Recommendations</span>
+
           <strong>{recommendations.length}</strong>
+
           <span className="metric-note">Generated for this cart</span>
         </article>
       </section>
@@ -170,6 +284,7 @@ export default function Home() {
               <p className="eyebrow">STEP 01</p>
               <h2>Product catalog</h2>
             </div>
+
             <button
               className="button secondary"
               onClick={loadProducts}
@@ -195,15 +310,20 @@ export default function Home() {
                     <div className="product-icon">
                       {product.name.charAt(0).toUpperCase()}
                     </div>
+
                     <div className="product-info">
                       <strong>{product.name}</strong>
                       <span>{product.category}</span>
+
                       <span className="product-price">
                         {money(product.price)}
                       </span>
                     </div>
+
                     <button
-                      className={`button ${selected ? "selected" : "secondary"}`}
+                      className={`button ${
+                        selected ? "selected" : "secondary"
+                      }`}
                       onClick={() => toggleCart(product._id)}
                     >
                       {selected ? "Remove" : "Add to cart"}
@@ -228,6 +348,7 @@ export default function Home() {
         <aside className="panel cart-panel">
           <p className="eyebrow">STEP 02</p>
           <h2>Your cart</h2>
+
           <p className="muted-text">
             Select products from the catalog to begin.
           </p>
@@ -246,18 +367,42 @@ export default function Home() {
                 </div>
               ))}
 
-              <div className="cart-total">
-                <span>Subtotal</span>
-                <strong>{money(cartTotal)}</strong>
-              </div>
+              {appliedBundle ? (
+                <>
+                  <div className="cart-total">
+                    <span>Subtotal</span>
+                    <strong>{money(cartSubtotal)}</strong>
+                  </div>
+
+                  <div className="cart-item discount-row">
+                    <span>
+                      Bundle discount ({appliedBundle.discountPercent}% off
+                      add-ons)
+                    </span>
+
+                    <strong>−{money(appliedBundle.discountAmount)}</strong>
+                  </div>
+
+                  <div className="cart-total">
+                    <span>Total after discount</span>
+                    <strong>{money(cartTotal)}</strong>
+                  </div>
+                </>
+              ) : (
+                <div className="cart-total">
+                  <span>Subtotal</span>
+                  <strong>{money(cartSubtotal)}</strong>
+                </div>
+              )}
             </div>
           )}
 
           <div className="tip">
             <strong>How it works</strong>
+
             <p>
               The engine ranks in-stock products using category compatibility,
-              related-product rules and price relevance.
+              related-product rules, and price relevance.
             </p>
           </div>
         </aside>
@@ -269,12 +414,13 @@ export default function Home() {
             <p className="eyebrow">STEP 03</p>
             <h2>Recommended for this cart</h2>
           </div>
+
           <span className="count-badge">{recommendations.length} results</span>
         </div>
 
         {recommendations.length === 0 ? (
           <div className="empty">
-            Your recommendations will appear here after generation.
+            Generate recommendations to see complementary products.
           </div>
         ) : (
           <div className="recommendation-grid">
@@ -284,18 +430,24 @@ export default function Home() {
                   <span className="product-icon large">
                     {product.name.charAt(0).toUpperCase()}
                   </span>
+
                   <span className="score">Score: {score}</span>
                 </div>
+
                 <h3>{product.name}</h3>
+
                 <p className="muted-text">{product.description}</p>
+
                 <strong className="recommendation-price">
                   {money(product.price)}
                 </strong>
+
                 <ul className="reason-list">
                   {reasons.map((reason) => (
                     <li key={reason}>{reason}</li>
                   ))}
                 </ul>
+
                 <button
                   className="button primary full-width"
                   onClick={() => addRecommendedProduct(product)}
@@ -306,6 +458,104 @@ export default function Home() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="panel bundles-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">STEP 04</p>
+            <h2>Dynamic bundle offers</h2>
+          </div>
+
+          <span className="count-badge">{bundles.length} offers</span>
+        </div>
+
+        {bundles.length === 0 ? (
+          <div className="empty">
+            {appliedBundle
+              ? `${appliedBundle.name} has been applied to your demo cart.`
+              : "Select products in your cart and generate recommendations to discover bundle deals."}
+          </div>
+        ) : (
+          <div className="bundle-grid">
+            {bundles.map((bundle) => (
+              <article className="bundle-card" key={bundle.id}>
+                <div className="bundle-badges">
+                  <span className="bundle-discount">
+                    {bundle.discountPercent}% off add-ons
+                  </span>
+
+                  <span className="bundle-type">
+                    {bundle.addOnProducts.length} add-on
+                    {bundle.addOnProducts.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <h3>{bundle.name}</h3>
+
+                <p className="muted-text">{bundle.description}</p>
+
+                <div className="bundle-item-list">
+                  <strong>Already in your cart</strong>
+
+                  <ul>
+                    {bundle.cartProducts.map((product) => (
+                      <li key={product._id}>{product.name}</li>
+                    ))}
+                  </ul>
+
+                  <strong>Added with this offer</strong>
+
+                  <ul>
+                    {bundle.addOnProducts.map((product) => (
+                      <li key={product._id}>
+                        {product.name} — {money(product.price)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="bundle-pricing">
+                  <div className="bundle-pricing-row">
+                    <span>Original combined total</span>
+                    <del>{money(bundle.originalTotal)}</del>
+                  </div>
+
+                  <div className="bundle-pricing-row">
+                    <span>Discount on add-ons</span>
+
+                    <strong className="discount-text">
+                      −{money(bundle.discountAmount)}
+                    </strong>
+                  </div>
+
+                  <div className="bundle-pricing-row bundle-final-price">
+                    <span>Total with offer</span>
+                    <strong>{money(bundle.finalTotal)}</strong>
+                  </div>
+
+                  <div className="bundle-pricing-row">
+                    <span>Added cart value if accepted</span>
+                    <strong>{money(bundle.incrementalRevenue)}</strong>
+                  </div>
+                </div>
+
+                <button
+                  className="button primary full-width"
+                  onClick={() => applyBundle(bundle)}
+                >
+                  Apply bundle to demo cart
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <p className="bundle-disclaimer">
+          Demo pricing only. Discounts apply to add-on products and do not
+          affect a real Shopify checkout. Actual sales and AOV improvements have
+          not yet been measured.
+        </p>
       </section>
 
       <footer>
