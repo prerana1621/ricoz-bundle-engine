@@ -9,6 +9,7 @@ const productRoutes = require("./src/routes/product.routes");
 const recommendationRoutes = require("./src/routes/recommendation.routes");
 const bundleRoutes = require("./src/routes/bundle.routes");
 const analyticsRoutes = require("./src/routes/analytics.routes");
+const bundleRuleRoutes = require("./src/routes/bundleRule.routes");
 const { notFound, errorHandler } = require("./src/middleware/error.middleware");
 
 const app = express();
@@ -32,6 +33,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/bundles", bundleRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/bundle-rules", bundleRuleRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

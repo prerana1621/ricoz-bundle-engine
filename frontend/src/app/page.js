@@ -25,6 +25,33 @@ export default function Home() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [analytics, setAnalytics] = useState(null);
+  const [bundleRules, setBundleRules] = useState([]);
+
+  const [ruleForm, setRuleForm] = useState({
+    name: "",
+    description: "",
+    addOnCount: "1",
+    discountPercent: "5",
+  });
+
+  const [editingRuleId, setEditingRuleId] = useState("");
+  const [savingRule, setSavingRule] = useState(false);
+
+  const loadBundleRules = useCallback(async () => {
+    try {
+      const response = await fetch(API_URL + "/bundle-rules");
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to load bundle rules.");
+      }
+
+      setBundleRules(data.rules || []);
+    } catch (err) {
+      setError(err.message || "Unable to load bundle rules.");
+    }
+  }, []);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -67,7 +94,8 @@ export default function Home() {
   useEffect(() => {
     loadProducts();
     loadAnalytics();
-  }, [loadProducts, loadAnalytics]);
+    loadBundleRules();
+  }, [loadProducts, loadAnalytics, loadBundleRules]);
 
   async function trackAnalyticsEvent(event) {
     try {
@@ -282,6 +310,115 @@ export default function Home() {
     }).then(() => loadAnalytics());
   }
 
+  function clearRuleForm() {
+    setRuleForm({
+      name: "",
+      description: "",
+      addOnCount: "1",
+      discountPercent: "5",
+    });
+
+    setEditingRuleId("");
+  }
+
+  function editBundleRule(rule) {
+    setEditingRuleId(rule._id);
+
+    setRuleForm({
+      name: rule.name,
+      description: rule.description || "",
+      addOnCount: String(rule.addOnCount),
+      discountPercent: String(rule.discountPercent),
+    });
+  }
+
+  async function saveBundleRule(event) {
+    event.preventDefault();
+
+    setSavingRule(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const isEditing = Boolean(editingRuleId);
+
+      const endpoint = isEditing
+        ? API_URL + "/bundle-rules/" + editingRuleId
+        : API_URL + "/bundle-rules";
+
+      const response = await fetch(endpoint, {
+        method: isEditing ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: ruleForm.name.trim(),
+          description: ruleForm.description.trim(),
+          addOnCount: Number(ruleForm.addOnCount),
+          discountPercent: Number(ruleForm.discountPercent),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to save the bundle rule.");
+      }
+
+      await loadBundleRules();
+
+      clearRuleForm();
+
+      // Existing offers are based on the previous configuration.
+      resetOffers();
+
+      setNotice(
+        isEditing
+          ? "Bundle rule updated successfully."
+          : "New bundle rule created successfully.",
+      );
+    } catch (err) {
+      setError(err.message || "Unable to save the bundle rule.");
+    } finally {
+      setSavingRule(false);
+    }
+  }
+
+  async function toggleBundleRule(rule) {
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await fetch(API_URL + "/bundle-rules/" + rule._id, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          enabled: !rule.enabled,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to update the bundle rule.");
+      }
+
+      await loadBundleRules();
+
+      resetOffers();
+
+      setNotice(
+        rule.enabled
+          ? rule.name + " has been disabled."
+          : rule.name + " has been enabled.",
+      );
+    } catch (err) {
+      setError(err.message || "Unable to update the bundle rule.");
+    }
+  }
+
   return (
     <main className="dashboard">
       <header className="topbar">
@@ -389,6 +526,177 @@ export default function Home() {
           These are recorded interaction counts, not unique customers, completed
           orders, or verified sales conversions.
         </p>
+      </section>
+
+      <section className="panel rules-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">STEP 06</p>
+            <h2>Bundle rule management</h2>
+          </div>
+
+          <span className="count-badge">{bundleRules.length} rules</span>
+        </div>
+
+        <p className="muted-text">
+          Create and configure offers without modifying backend code.
+        </p>
+
+        <form className="rule-form" onSubmit={saveBundleRule}>
+          <div className="rule-form-grid">
+            <label className="rule-field">
+              Bundle name
+              <input
+                type="text"
+                value={ruleForm.name}
+                onChange={(event) =>
+                  setRuleForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder="For example, Essentials Bundle"
+                minLength={2}
+                maxLength={80}
+                required
+              />
+            </label>
+
+            <label className="rule-field">
+              Description
+              <input
+                type="text"
+                value={ruleForm.description}
+                onChange={(event) =>
+                  setRuleForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Describe this bundle"
+                maxLength={300}
+              />
+            </label>
+
+            <label className="rule-field">
+              Number of add-ons
+              <select
+                value={ruleForm.addOnCount}
+                onChange={(event) =>
+                  setRuleForm((current) => ({
+                    ...current,
+                    addOnCount: event.target.value,
+                  }))
+                }
+              >
+                <option value="1">1 add-on</option>
+                <option value="2">2 add-ons</option>
+                <option value="3">3 add-ons</option>
+                <option value="4">4 add-ons</option>
+                <option value="5">5 add-ons</option>
+              </select>
+            </label>
+
+            <label className="rule-field">
+              Discount percentage
+              <input
+                type="number"
+                min="0"
+                max="15"
+                step="0.5"
+                value={ruleForm.discountPercent}
+                onChange={(event) =>
+                  setRuleForm((current) => ({
+                    ...current,
+                    discountPercent: event.target.value,
+                  }))
+                }
+                required
+              />
+            </label>
+          </div>
+
+          <div className="rule-form-actions">
+            <button
+              type="submit"
+              className="button primary"
+              disabled={savingRule}
+            >
+              {savingRule
+                ? "Saving..."
+                : editingRuleId
+                  ? "Save changes"
+                  : "Create bundle rule"}
+            </button>
+
+            {editingRuleId && (
+              <button
+                type="button"
+                className="button secondary"
+                onClick={clearRuleForm}
+              >
+                Cancel editing
+              </button>
+            )}
+          </div>
+        </form>
+
+        <div className="rule-list">
+          <h3>Saved bundle rules</h3>
+
+          {bundleRules.length === 0 ? (
+            <p className="empty">
+              No bundle rules found. Create your first rule above.
+            </p>
+          ) : (
+            bundleRules.map((rule) => (
+              <article className="rule-row" key={rule._id}>
+                <div className="rule-info">
+                  <strong>{rule.name}</strong>
+
+                  <span>
+                    {rule.addOnCount} add-on
+                    {rule.addOnCount === 1 ? "" : "s"}
+                    {" · "}
+                    {rule.discountPercent}% discount
+                  </span>
+
+                  {rule.description && <span>{rule.description}</span>}
+
+                  <span
+                    className={
+                      rule.enabled
+                        ? "rule-status enabled"
+                        : "rule-status disabled"
+                    }
+                  >
+                    {rule.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+
+                <div className="rule-actions">
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => editBundleRule(rule)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      rule.enabled ? "button selected" : "button primary"
+                    }
+                    onClick={() => toggleBundleRule(rule)}
+                  >
+                    {rule.enabled ? "Disable" : "Enable"}
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
       </section>
 
       <section className="workspace">

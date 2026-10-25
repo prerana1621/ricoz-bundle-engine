@@ -589,3 +589,304 @@ footer {
       grid-template-columns: 1fr;
     }
   }
+
+  
+  /* Bundle rule management — isolated dashboard styling */
+  
+  .rules-panel {
+    margin: 0 0 24px;
+    padding: 28px;
+    border: 1px solid #e3eae5;
+    border-radius: 18px;
+    background: #ffffff;
+    color: #1b2922;
+  }
+  
+  .rules-panel .panel-heading {
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .rules-panel .panel-heading h2 {
+    font-size: 23px;
+    line-height: 1.35;
+    font-weight: 650;
+    letter-spacing: -0.04em;
+  }
+  
+  .rules-panel > .muted-text {
+    margin: 0 0 24px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  
+  /* Form container */
+  
+  .rules-panel .rule-form {
+    margin: 0;
+    padding: 24px;
+    border: 1px solid #e4ebe6;
+    border-radius: 14px;
+    background: #f8faf8;
+  }
+  
+  .rules-panel .rule-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+  }
+  
+  /* Labels and inputs */
+  
+  .rules-panel .rule-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+    min-width: 0;
+    color: #34443a;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.5;
+  }
+  
+  .rules-panel .rule-field input,
+  .rules-panel .rule-field select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    margin: 0;
+    padding: 11px 13px;
+    border: 1px solid #d7e1d9;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #1b2922;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  
+  .rules-panel .rule-field input::placeholder {
+    color: #98a49b;
+    opacity: 1;
+  }
+  
+  .rules-panel .rule-field input:focus,
+  .rules-panel .rule-field select:focus {
+    outline: none;
+    border-color: #16835a;
+    box-shadow: 0 0 0 3px rgba(22, 131, 90, 0.12);
+  }
+  
+  /* Form action buttons */
+  
+  .rules-panel .rule-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  
+  .rules-panel .rule-form-actions .button {
+    min-height: 43px;
+    padding: 11px 17px;
+    font-size: 13px;
+  }
+  
+  .rules-panel .button.primary {
+    background: #137a53;
+    color: #ffffff;
+    border-color: #137a53;
+  }
+  
+  .rules-panel .button.primary:hover:not(:disabled) {
+    background: #0e6544;
+    border-color: #0e6544;
+  }
+  
+  .rules-panel .button.secondary {
+    background: #ffffff;
+    color: #34443a;
+    border-color: #dce5de;
+  }
+  
+  .rules-panel .button.secondary:hover:not(:disabled) {
+    background: #f0f5f1;
+  }
+  
+  .rules-panel .button.selected {
+    background: #fff1f0;
+    color: #b42318;
+    border-color: #f4d0cc;
+  }
+  
+  /* Saved rules */
+  
+  .rules-panel .rule-list {
+    margin-top: 30px;
+  }
+  
+  .rules-panel .rule-list h3 {
+    margin: 0 0 14px;
+    color: #26372d;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  
+  .rules-panel .rule-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    margin-bottom: 12px;
+    padding: 20px;
+    border: 1px solid #e4ebe6;
+    border-radius: 13px;
+    background: #ffffff;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  
+  .rules-panel .rule-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .rules-panel .rule-row:hover {
+    border-color: #c8dbce;
+    background: #fcfefc;
+  }
+  
+  .rules-panel .rule-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+  }
+  
+  .rules-panel .rule-info > strong {
+    color: #1e3025;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  
+  .rules-panel .rule-info > span {
+    color: #6d7b71;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  
+  .rules-panel .rule-info .rule-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-top: 3px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  
+  .rules-panel .rule-status.enabled {
+    background: #e9f6ee;
+    color: #177346;
+  }
+  
+  .rules-panel .rule-status.disabled {
+    background: #fff4df;
+    color: #925b0a;
+  }
+  
+  /* Rule actions */
+  
+  .rules-panel .rule-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+  
+  .rules-panel .rule-actions .button {
+    min-height: 39px;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 650;
+  }
+  
+  /* Empty state */
+  
+  .rules-panel .rule-list > .empty {
+    padding: 28px 16px;
+    border: 1px dashed #dce5de;
+    border-radius: 12px;
+    background: #fafcfa;
+    color: #718076;
+  }
+  
+  /* Tablet and mobile */
+  
+  @media (max-width: 760px) {
+    .rules-panel {
+      padding: 20px;
+    }
+  
+    .rules-panel .rule-form {
+      padding: 18px;
+    }
+  
+    .rules-panel .rule-form-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 17px;
+    }
+  
+    .rules-panel .rule-row {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 16px;
+      padding: 17px;
+    }
+  
+    .rules-panel .rule-actions {
+      width: 100%;
+    }
+  
+    .rules-panel .rule-actions .button {
+      flex: 1;
+    }
+  }
+  
+  @media (max-width: 420px) {
+    .rules-panel {
+      padding: 15px;
+    }
+  
+    .rules-panel .rule-form {
+      padding: 14px;
+    }
+  
+    .rules-panel .panel-heading h2 {
+      font-size: 20px;
+    }
+  
+    .rules-panel .rule-form-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  
+    .rules-panel .rule-form-actions .button {
+      width: 100%;
+    }
+  }
+  
