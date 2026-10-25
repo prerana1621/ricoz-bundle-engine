@@ -24,6 +24,7 @@ export default function Home() {
 
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [analytics, setAnalytics] = useState(null);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -46,10 +47,46 @@ export default function Home() {
       setLoadingProducts(false);
     }
   }, []);
-
+  
+  const loadAnalytics = useCallback(async () => {
+    try {
+      const response = await fetch(API_URL + "/analytics/summary");
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to load analytics.");
+      }
+      
+      setAnalytics(data.metrics);
+    } catch (err) {
+      console.error("Analytics refresh failed:", err);
+    }
+  }, []);
+  
   useEffect(() => {
     loadProducts();
-  }, [loadProducts]);
+    loadAnalytics();
+  }, [loadProducts, loadAnalytics]);
+
+  async function trackAnalyticsEvent(event) {
+    try {
+      const response = await fetch(API_URL + "/analytics/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(event),
+      });
+
+      if (!response.ok) {
+        console.error("The analytics event could not be recorded.");
+      }
+    } catch (err) {
+      // Analytics failures must not break shopping interactions.
+      console.error("Analytics tracking failed:", err);
+    }
+  }
 
   const cartProducts = products.filter((product) =>
     cartIds.includes(product._id),
@@ -91,7 +128,7 @@ export default function Home() {
 
     if (appliedBundle) {
       setNotice(
-        "A bundle discount is already applied. Remove or change a cart item before generating a new offer.",
+        "A bundle discount is already applied. Change the cart before generating new offers.",
       );
       return;
     }
@@ -104,7 +141,7 @@ export default function Home() {
       setBundles([]);
 
       const [recommendationResponse, bundleResponse] = await Promise.all([
-        fetch(`${API_URL}/recommendations`, {
+        fetch(API_URL + "/recommendations", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -115,7 +152,7 @@ export default function Home() {
           }),
         }),
 
-        fetch(`${API_URL}/bundles`, {
+        fetch(API_URL + "/bundles", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -144,16 +181,35 @@ export default function Home() {
         );
       }
 
-      setRecommendations(recommendationData.recommendations || []);
+      const recommendationList = recommendationData.recommendations || [];
 
-      setBundles(bundleData.bundles || []);
+      const bundleList = bundleData.bundles || [];
+
+      setRecommendations(recommendationList);
+      setBundles(bundleList);
+
+      // Record how many recommendation items and bundle offers
+      // were generated for display.
+      await Promise.all([
+        trackAnalyticsEvent({
+          eventType: "recommendations_generated",
+          itemCount: recommendationList.length,
+        }),
+
+        trackAnalyticsEvent({
+          eventType: "bundles_generated",
+          itemCount: bundleList.length,
+        }),
+      ]);
+
+      await loadAnalytics();
 
       setNotice(
-        `Generated ${
-          recommendationData.recommendations.length
-        } product recommendations and ${
-          bundleData.bundles.length
-        } bundle offers.`,
+        "Generated " +
+          recommendationList.length +
+          " product recommendations and " +
+          bundleList.length +
+          " bundle offers.",
       );
     } catch (err) {
       setError(err.message || "Something went wrong.");
@@ -169,8 +225,14 @@ export default function Home() {
 
     resetOffers();
 
-    setNotice(`${product.name} added to your demo cart.`);
+    setNotice(product.name + " added to your demo cart.");
+
     setError("");
+
+    void trackAnalyticsEvent({
+      eventType: "recommendation_added_to_cart",
+      productIds: [product._id],
+    }).then(() => loadAnalytics());
   }
 
   function applyBundle(bundle) {
@@ -212,6 +274,12 @@ export default function Home() {
     setNotice(
       `${bundle.name} applied to your demo cart. The discount is simulated and is not applied to a real Shopify checkout.`,
     );
+
+    void trackAnalyticsEvent({
+      eventType: "bundle_applied",
+      bundleId: bundle.id,
+      productIds: addOnIds,
+    }).then(() => loadAnalytics());
   }
 
   return (
@@ -275,6 +343,52 @@ export default function Home() {
 
           <span className="metric-note">Generated for this cart</span>
         </article>
+      </section>
+
+      <section className="panel analytics-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">STEP 05</p>
+            <h2>Interaction analytics</h2>
+          </div>
+
+          <button className="button secondary" onClick={loadAnalytics}>
+            Refresh metrics
+          </button>
+        </div>
+
+        <p className="muted-text">
+          Tracked demo interactions from the last 30 days.
+        </p>
+
+        <div className="analytics-grid">
+          <article className="analytics-card">
+            <span>Recommended items shown</span>
+            <strong>
+              {analytics ? analytics.recommendationItemsShown : "—"}
+            </strong>
+          </article>
+
+          <article className="analytics-card">
+            <span>Recommendations added to cart</span>
+            <strong>{analytics ? analytics.recommendationAdds : "—"}</strong>
+          </article>
+
+          <article className="analytics-card">
+            <span>Bundle offers shown</span>
+            <strong>{analytics ? analytics.bundleOffersShown : "—"}</strong>
+          </article>
+
+          <article className="analytics-card">
+            <span>Bundles applied</span>
+            <strong>{analytics ? analytics.bundleApplications : "—"}</strong>
+          </article>
+        </div>
+
+        <p className="analytics-note">
+          These are recorded interaction counts, not unique customers, completed
+          orders, or verified sales conversions.
+        </p>
       </section>
 
       <section className="workspace">
