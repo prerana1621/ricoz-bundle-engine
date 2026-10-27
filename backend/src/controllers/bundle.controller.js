@@ -38,19 +38,6 @@ async function generateBundles(req, res, next) {
       });
     }
 
-    if (
-      storeId !== undefined &&
-      (
-        typeof storeId !== "string" ||
-        !/^[a-zA-Z0-9_-]{1,80}$/.test(storeId)
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid storeId."
-      });
-    }
-
     const result = await generateBundleOffers(cartProductIds, req.user.storeId);
 
     return res.json({

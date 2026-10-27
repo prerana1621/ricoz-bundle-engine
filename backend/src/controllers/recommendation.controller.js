@@ -37,16 +37,6 @@ async function recommend(req, res, next) {
       });
     }
 
-    if (
-      storeId !== undefined &&
-      (typeof storeId !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(storeId))
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid storeId.",
-      });
-    }
-
     const recommendations = await getRecommendations(
       cartProductIds,
       limit || 4,
