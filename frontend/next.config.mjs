@@ -1,15 +1,17 @@
-/** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_URL?.replace(/\/+$/, "");
+
+    if (!backendUrl) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
-    },
+    ];
   },
 };
 

@@ -7,10 +7,22 @@ import "./page.css";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 async function apiRequest(url, options = {}) {
-  const requestUrl =
-    url.startsWith("http://") || url.startsWith("https://")
-      ? url
-      : `${API_URL}${url}`;
+  const isAbsolute = /^https?:\/\//i.test(url);
+  let requestUrl = url;
+
+  if (!isAbsolute) {
+    const base = API_URL.replace(/\/+$/, "");
+
+    if (base.startsWith("/")) {
+      // Avoid turning /api/products into /api/api/products.
+      requestUrl =
+        url === base || url.startsWith(`${base}/`)
+          ? url
+          : `${base}${url.startsWith("/") ? url : `/${url}`}`;
+    } else {
+      requestUrl = `${base}${url.startsWith("/") ? url : `/${url}`}`;
+    }
+  }
 
   return fetch(requestUrl, {
     ...options,
