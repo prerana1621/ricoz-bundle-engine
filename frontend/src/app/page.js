@@ -1,9 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import "./page.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+async function apiRequest(url, options = {}) {
+  const requestUrl =
+    url.startsWith("http://") || url.startsWith("https://")
+      ? url
+      : `${API_URL}${url}`;
+
+  return fetch(requestUrl, {
+    ...options,
+    credentials: "include",
+  });
+}
 
 function money(value) {
   return new Intl.NumberFormat("en-US", {
@@ -13,6 +26,11 @@ function money(value) {
 }
 
 export default function Home() {
+  const router = useRouter();
+
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [products, setProducts] = useState([]);
   const [cartIds, setCartIds] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
@@ -39,7 +57,7 @@ export default function Home() {
 
   const loadBundleRules = useCallback(async () => {
     try {
-      const response = await fetch(API_URL + "/bundle-rules");
+      const response = await apiRequest(API_URL + "/bundle-rules");
 
       const data = await response.json();
 
@@ -58,7 +76,7 @@ export default function Home() {
       setLoadingProducts(true);
       setError("");
 
-      const response = await fetch(`${API_URL}/products`);
+      const response = await apiRequest(`${API_URL}/products`);
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -77,7 +95,7 @@ export default function Home() {
   
   const loadAnalytics = useCallback(async () => {
     try {
-      const response = await fetch(API_URL + "/analytics/summary");
+      const response = await apiRequest(API_URL + "/analytics/summary");
       
       const data = await response.json();
       
@@ -92,14 +110,51 @@ export default function Home() {
   }, []);
   
   useEffect(() => {
-    loadProducts();
-    loadAnalytics();
-    loadBundleRules();
-  }, [loadProducts, loadAnalytics, loadBundleRules]);
+    let active = true;
+
+    async function initializeDashboard() {
+      try {
+        const response = await apiRequest(`${API_URL}/auth/me`);
+
+        if (!response.ok) {
+          router.replace("/login");
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          router.replace("/login");
+          return;
+        }
+
+        if (!active) return;
+
+        setCurrentUser(data.user);
+        setIsAuthenticated(true);
+
+        await Promise.all([loadProducts(), loadAnalytics(), loadBundleRules()]);
+      } catch (error) {
+        if (active) {
+          router.replace("/login");
+        }
+      } finally {
+        if (active) {
+          setAuthLoading(false);
+        }
+      }
+    }
+
+    initializeDashboard();
+
+    return () => {
+      active = false;
+    };
+  }, [router, loadProducts, loadAnalytics, loadBundleRules]);
 
   async function trackAnalyticsEvent(event) {
     try {
-      const response = await fetch(API_URL + "/analytics/events", {
+      const response = await apiRequest(API_URL + "/analytics/events", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -169,7 +224,7 @@ export default function Home() {
       setBundles([]);
 
       const [recommendationResponse, bundleResponse] = await Promise.all([
-        fetch(API_URL + "/recommendations", {
+        apiRequest(API_URL + "/recommendations", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -180,14 +235,13 @@ export default function Home() {
           }),
         }),
 
-        fetch(API_URL + "/bundles", {
+        apiRequest(API_URL + "/bundles", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             cartProductIds: cartIds,
-            storeId: "demo-store",
           }),
         }),
       ]);
@@ -346,7 +400,7 @@ export default function Home() {
         ? API_URL + "/bundle-rules/" + editingRuleId
         : API_URL + "/bundle-rules";
 
-      const response = await fetch(endpoint, {
+      const response = await apiRequest(endpoint, {
         method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -384,12 +438,24 @@ export default function Home() {
     }
   }
 
+  async function logout() {
+    try {
+      await apiRequest(`${API_URL}/auth/logout`, {
+        method: "POST",
+      });
+    } finally {
+      setIsAuthenticated(false);
+      router.replace("/login");
+      router.refresh();
+    }
+  }
+
   async function toggleBundleRule(rule) {
     setError("");
     setNotice("");
 
     try {
-      const response = await fetch(API_URL + "/bundle-rules/" + rule._id, {
+      const response = await apiRequest(API_URL + "/bundle-rules/" + rule._id, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -419,6 +485,20 @@ export default function Home() {
     }
   }
 
+  if (authLoading || !isAuthenticated) {
+    return (
+      <main className="dashboard">
+        <div className="panel">
+          <p className="muted-text">
+            {authLoading
+              ? "Checking your session..."
+              : "Redirecting to sign in..."}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard">
       <header className="topbar">
@@ -429,7 +509,15 @@ export default function Home() {
           </span>
         </a>
 
-        <span className="environment">DEMO STORE</span>
+        <div className="account-actions">
+          <span className="environment">
+            {currentUser?.email || "Signed-in user"}
+          </span>
+
+          <button className="button secondary" onClick={logout}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       <section className="intro">

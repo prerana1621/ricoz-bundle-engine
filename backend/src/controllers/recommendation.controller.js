@@ -3,7 +3,7 @@ const { getRecommendations } = require("../services/recommendation.service");
 
 async function recommend(req, res, next) {
   try {
-    const { cartProductIds, limit, storeId } = req.body;
+    const { cartProductIds, limit } = req.body;
 
     if (
       !Array.isArray(cartProductIds) ||
@@ -50,7 +50,7 @@ async function recommend(req, res, next) {
     const recommendations = await getRecommendations(
       cartProductIds,
       limit || 4,
-      storeId || "demo-store",
+      req.user.storeId,
     );
 
     res.json({

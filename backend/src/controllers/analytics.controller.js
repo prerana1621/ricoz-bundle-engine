@@ -54,7 +54,7 @@ async function trackEvent(req, res, next) {
     // This endpoint is for the local demo store only.
     // Do not accept a storeId supplied by the browser.
     const event = await AnalyticsEvent.create({
-      storeId: "demo-store",
+      storeId: req.user.storeId,
       eventType,
       itemCount,
       productIds,
@@ -78,7 +78,7 @@ async function getAnalyticsSummary(req, res, next) {
     const groupedEvents = await AnalyticsEvent.aggregate([
       {
         $match: {
-          storeId: "demo-store",
+          storeId: req.user.storeId,
           createdAt: {
             $gte: thirtyDaysAgo,
           },

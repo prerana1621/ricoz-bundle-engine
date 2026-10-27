@@ -2,7 +2,7 @@ const Product = require("../models/Product");
 
 async function listProducts(req, res, next) {
   try {
-    const storeId = req.query.storeId || "demo-store";
+    const storeId = req.user.storeId;
 
     const products = await Product.find({
       storeId,

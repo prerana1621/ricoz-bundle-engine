@@ -6,7 +6,7 @@ const {
 
 async function generateBundles(req, res, next) {
   try {
-    const { cartProductIds, storeId } = req.body;
+    const { cartProductIds } = req.body;
 
     if (
       !Array.isArray(cartProductIds) ||
@@ -51,10 +51,7 @@ async function generateBundles(req, res, next) {
       });
     }
 
-    const result = await generateBundleOffers(
-      cartProductIds,
-      storeId || "demo-store"
-    );
+    const result = await generateBundleOffers(cartProductIds, req.user.storeId);
 
     return res.json({
       success: true,

@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const BundleRule = require("../models/BundleRule");
 
-const STORE_ID = "demo-store";
 const MAX_DISCOUNT_PERCENT = 15;
 
 function validateRuleFields(body, partial = false) {
@@ -92,11 +91,11 @@ function validateRuleFields(body, partial = false) {
 
 async function listBundleRules(req, res, next) {
   try {
-    const rules = await BundleRule.find({
-      storeId: STORE_ID,
-    })
-      .sort({ sortOrder: 1, createdAt: 1 })
-      .lean();
+      const rules = await BundleRule.find({
+        storeId: req.user.storeId,
+      })
+        .sort({ sortOrder: 1, createdAt: 1 })
+        .lean();
 
     return res.json({
       success: true,
@@ -121,7 +120,7 @@ async function createBundleRule(req, res, next) {
 
     const rule = await BundleRule.create({
       ...updates,
-      storeId: STORE_ID,
+      storeId: req.user.storeId,
     });
 
     return res.status(201).json({
@@ -182,7 +181,7 @@ async function updateBundleRule(req, res, next) {
     const rule = await BundleRule.findOneAndUpdate(
       {
         _id: req.params.id,
-        storeId: STORE_ID,
+        storeId: req.user.storeId,
       },
       {
         $set: updates,
