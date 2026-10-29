@@ -124,38 +124,49 @@ export default function Home() {
   useEffect(() => {
     let active = true;
 
-    async function initializeDashboard() {
-      try {
-        const response = await apiRequest(`${API_URL}/auth/me`);
+    
+async function initializeDashboard() {
+  try {
+    const response = await apiRequest(
+      `${API_URL}/auth/me`
+    );
 
-        if (!response.ok) {
-          router.replace("/login");
-          return;
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-          router.replace("/login");
-          return;
-        }
-
-        if (!active) return;
-
-        setCurrentUser(data.user);
-        setIsAuthenticated(true);
-
-        await Promise.all([loadProducts(), loadAnalytics(), loadBundleRules()]);
-      } catch (error) {
-        if (active) {
-          router.replace("/login");
-        }
-      } finally {
-        if (active) {
-          setAuthLoading(false);
-        }
-      }
+    if (!response.ok) {
+      router.replace("/login");
+      return;
     }
+
+    const data = await response.json();
+
+    if (!data.success || !data.user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!active) return;
+
+    setCurrentUser(data.user);
+    setIsAuthenticated(true);
+
+    // Start loading each dashboard section independently.
+    // Do not make the entire dashboard wait for analytics
+    // or bundle rules to finish loading.
+    void loadProducts();
+    void loadAnalytics();
+    void loadBundleRules();
+
+  } catch (error) {
+    console.error("Dashboard initialization failed:", error);
+
+    if (active) {
+      router.replace("/login");
+    }
+  } finally {
+    if (active) {
+      setAuthLoading(false);
+    }
+  }
+}
 
     initializeDashboard();
 
@@ -215,75 +226,58 @@ export default function Home() {
     setError("");
   }
 
-  async function generateRecommendations() {
-    if (cartIds.length === 0) {
-      setNotice("Select at least one product for the cart.");
-      return;
+  
+async function generateRecommendations() {
+  if (cartIds.length === 0) {
+    setNotice("Select at least one product for the cart.");
+    return;
+  }
+
+  if (appliedBundle) {
+    setNotice(
+      "A bundle discount is already applied. Change the cart before generating new offers.",
+    );
+    return;
+  }
+
+  try {
+    setLoadingRecommendations(true);
+    setError("");
+    setNotice("");
+    setRecommendations([]);
+    setBundles([]);
+
+    const response = await apiRequest(`${API_URL}/cart/insights`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cartProductIds: cartIds,
+        limit: 4,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to generate recommendations.");
     }
 
-    if (appliedBundle) {
-      setNotice(
-        "A bundle discount is already applied. Change the cart before generating new offers.",
-      );
-      return;
-    }
+    const recommendationList = data.recommendations || [];
+    const bundleList = data.bundles || [];
 
-    try {
-      setLoadingRecommendations(true);
-      setError("");
-      setNotice("");
-      setRecommendations([]);
-      setBundles([]);
+    // Update the interface immediately when the main API responds.
+    setRecommendations(recommendationList);
+    setBundles(bundleList);
 
-      const [recommendationResponse, bundleResponse] = await Promise.all([
-        apiRequest(API_URL + "/recommendations", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cartProductIds: cartIds,
-            limit: 4,
-          }),
-        }),
+    setNotice(
+      `Generated ${recommendationList.length} recommendations and ${bundleList.length} bundle offers.`,
+    );
 
-        apiRequest(API_URL + "/bundles", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cartProductIds: cartIds,
-          }),
-        }),
-      ]);
-
-      const [recommendationData, bundleData] = await Promise.all([
-        recommendationResponse.json(),
-        bundleResponse.json(),
-      ]);
-
-      if (!recommendationResponse.ok || !recommendationData.success) {
-        throw new Error(
-          recommendationData.message || "Unable to load recommendations.",
-        );
-      }
-
-      if (!bundleResponse.ok || !bundleData.success) {
-        throw new Error(
-          bundleData.message || "Unable to generate bundle offers.",
-        );
-      }
-
-      const recommendationList = recommendationData.recommendations || [];
-
-      const bundleList = bundleData.bundles || [];
-
-      setRecommendations(recommendationList);
-      setBundles(bundleList);
-
-      // Record how many recommendation items and bundle offers
-      // were generated for display.
+    // Record analytics in the background instead of making the
+    // Generate button wait for the analytics API.
+    void (async () => {
       await Promise.all([
         trackAnalyticsEvent({
           eventType: "recommendations_generated",
@@ -297,20 +291,13 @@ export default function Home() {
       ]);
 
       await loadAnalytics();
-
-      setNotice(
-        "Generated " +
-          recommendationList.length +
-          " product recommendations and " +
-          bundleList.length +
-          " bundle offers.",
-      );
-    } catch (err) {
-      setError(err.message || "Something went wrong.");
-    } finally {
-      setLoadingRecommendations(false);
-    }
+    })();
+  } catch (error) {
+    setError(error.message || "Unable to generate recommendations.");
+  } finally {
+    setLoadingRecommendations(false);
   }
+}
 
   function addRecommendedProduct(product) {
     setCartIds((current) =>

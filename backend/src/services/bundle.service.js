@@ -22,7 +22,11 @@ function calculateDiscount(subtotal, discountPercent) {
   return roundMoney(subtotal * (discountPercent / 100));
 }
 
-async function generateBundleOffers(cartProductIds, storeId = "demo-store") {
+async function generateBundleOffers(
+  cartProductIds,
+  storeId = "demo-store",
+  suppliedRecommendations = null,
+) {
   const uniqueCartIds = [...new Set(cartProductIds)];
 
   if (uniqueCartIds.length !== cartProductIds.length) {
@@ -61,7 +65,9 @@ async function generateBundleOffers(cartProductIds, storeId = "demo-store") {
   );
 
   const [recommendations, rules] = await Promise.all([
-    getRecommendations(uniqueCartIds, 10, storeId),
+    Array.isArray(suppliedRecommendations)
+      ? Promise.resolve(suppliedRecommendations)
+      : getRecommendations(uniqueCartIds, 10, storeId),
 
     BundleRule.find({
       storeId,

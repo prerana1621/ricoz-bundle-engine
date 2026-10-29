@@ -13,6 +13,7 @@ const bundleRuleRoutes = require("./src/routes/bundleRule.routes");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./src/routes/auth.routes");
 const { requireAuth } = require("./src/middleware/auth.middleware");
+const cartInsightsRoutes = require("./src/routes/cartInsights.routes");
 const { notFound, errorHandler } = require("./src/middleware/error.middleware");
 
 const app = express();
@@ -42,6 +43,7 @@ app.use("/api/recommendations", requireAuth, recommendationRoutes);
 app.use("/api/bundles", requireAuth, bundleRoutes);
 app.use("/api/analytics", requireAuth, analyticsRoutes);
 app.use("/api/bundle-rules", requireAuth, bundleRuleRoutes);
+app.use("/api/cart/insights", requireAuth, cartInsightsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
