@@ -484,19 +484,51 @@ async function generateRecommendations() {
     }
   }
 
-  if (authLoading || !isAuthenticated) {
-    return (
-      <main className="dashboard">
-        <div className="panel">
-          <p className="muted-text">
-            {authLoading
-              ? "Checking your session..."
-              : "Redirecting to sign in..."}
-          </p>
+  
+if (authLoading || !isAuthenticated) {
+  return (
+    <main className="session-loading-page">
+      <div className="session-loading-card">
+        <div className="session-loading-brand">
+          <span className="brand-mark">R</span>
+          <span>
+            Ricoz <span className="muted">Commerce</span>
+          </span>
         </div>
-      </main>
-    );
-  }
+
+        {authLoading ? (
+          <div className="session-loading-content" role="status" aria-live="polite">
+            <span className="session-spinner" aria-hidden="true" />
+            <div>
+              <p className="session-loading-title">
+                Verifying your session
+              </p>
+              <p className="session-loading-description">
+                Please wait while we securely prepare your dashboard.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="session-loading-content"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="session-status-dot" aria-hidden="true" />
+            <div>
+              <p className="session-loading-title">
+                Redirecting to sign in
+              </p>
+              <p className="session-loading-description">
+                Your dashboard requires an active session.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
 
   return (
     <main className="dashboard">
